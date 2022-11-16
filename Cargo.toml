@@ -3,6 +3,9 @@ name = "min-review-bot"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+anyhow = "1"
+clap = { version = "4.0.25", features = ["derive"] }
+dotenv = "0.15.0"
+octocrab = "0.17.0"
+tokio = { version = "1.21.2", features = ["full"] }
