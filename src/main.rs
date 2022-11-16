@@ -1,18 +1,27 @@
+use crate::github::{GithubSource, Repo, RepoConnector};
 use clap::Parser;
 
-mod pr;
+mod github;
 
 #[derive(Parser, Debug)] // requires `derive` feature
 #[command(term_width = 0)] // Just to make testing across clap features easier
 struct Args {
-    /// Implicitly using `std::str::FromStr`
     #[arg(long, short)]
     pr_num: u64,
+    #[arg(long, short)]
+    repo: String,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    println!("PR: {:?}", pr::get_pr(args.pr_num).await?);
+    let repo_connector = RepoConnector::new(GithubSource, Repo::from_path(args.repo)?);
+    println!("PR DIFF");
+    println!(
+        "{:?}",
+        repo_connector.get_pr_changed_files(args.pr_num).await?
+    );
+    println!("CODEOWNERS");
+    println!("{:?}", repo_connector.get_codeowners_content().await?);
     Ok(())
 }
