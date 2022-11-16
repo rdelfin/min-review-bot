@@ -36,6 +36,6 @@ async fn main() -> anyhow::Result<()> {
         repo_connector.get_pr_changed_files(args.pr_num).await?
     );
     println!("CODEOWNERS");
-    println!("{:?}", repo_connector.get_codeowners_content().await?);
+    println!("{}", repo_connector.get_codeowners_content().await?);
     Ok(())
 }

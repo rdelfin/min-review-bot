@@ -129,16 +129,20 @@ impl RepoSource for GithubSource {
             .get_content()
             .path(path)
             .send()
-            .await?;
+            .await?
+            .take_items();
 
-        if content_items.items.len() != 1 {
+        if content_items.len() != 1 {
             return Err(Error::GotMulticontent);
         }
 
-        content_items.items[0]
+        let raw_contents = content_items[0]
             .content
             .clone()
-            .ok_or(Error::EmptyContents)
+            .ok_or(Error::EmptyContents)?
+            .replace("\n", "");
+
+        Ok(String::from_utf8(base64::decode(raw_contents)?)?)
     }
 }
 
@@ -158,6 +162,10 @@ pub enum Error {
     InvalidDiffFile(String),
     #[error("could not find installation ID matching user {0}")]
     NoInstallationId(String),
+    #[error("could not decode file as base64: {0}")]
+    Base64Decode(#[from] base64::DecodeError),
+    #[error("could not decode file as utf8: {0}")]
+    InvalidUtf8(#[from] std::string::FromUtf8Error),
 }
 
 pub type Result<T = (), E = Error> = std::result::Result<T, E>;
