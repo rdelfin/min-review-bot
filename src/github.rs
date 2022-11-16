@@ -1,4 +1,4 @@
-use octocrab::models::pulls::PullRequest;
+use octocrab::{models::pulls::PullRequest, Octocrab};
 use std::collections::BTreeSet;
 use unidiff::{PatchSet, PatchedFile};
 
@@ -64,12 +64,49 @@ pub trait RepoSource {
 }
 
 #[derive(Debug)]
-pub struct GithubSource;
+pub struct GithubSource {
+    octo_instance: Octocrab,
+}
+
+impl GithubSource {
+    pub async fn new_authorized(user: &str) -> Result<GithubSource> {
+        let mut installation_id = None;
+        let mut page = 1u32; // yes, it's 1-indexed
+        let mut found = false;
+        let mut empty = false;
+        while !found && !empty {
+            empty = true;
+            for installation in octocrab::instance()
+                .apps()
+                .installations()
+                .per_page(100)
+                .page(page)
+                .send()
+                .await?
+            {
+                empty = false;
+                if installation.account.login == user {
+                    installation_id = Some(installation.id);
+                    found = true;
+                    break;
+                }
+            }
+            page += 1;
+        }
+
+        let installation_id =
+            installation_id.ok_or_else(|| Error::NoInstallationId(user.into()))?;
+        let octo_instance = octocrab::instance().installation(installation_id);
+
+        Ok(GithubSource { octo_instance })
+    }
+}
 
 #[async_trait::async_trait]
 impl RepoSource for GithubSource {
     async fn get_pr_info(&self, num: u64, repo: &Repo) -> Result<PullRequest> {
-        Ok(octocrab::instance()
+        Ok(self
+            .octo_instance
             .pulls(repo.user(), repo.repo())
             .media_type(octocrab::params::pulls::MediaType::Full)
             .get(num)
@@ -77,7 +114,8 @@ impl RepoSource for GithubSource {
     }
 
     async fn get_pr_diff(&self, num: u64, repo: &Repo) -> Result<String> {
-        Ok(octocrab::instance()
+        Ok(self
+            .octo_instance
             .pulls(repo.user(), repo.repo())
             .media_type(octocrab::params::pulls::MediaType::Full)
             .get_diff(num)
@@ -85,7 +123,8 @@ impl RepoSource for GithubSource {
     }
 
     async fn get_file_data(&self, path: String, repo: &Repo) -> Result<String> {
-        let content_items = octocrab::instance()
+        let content_items = self
+            .octo_instance
             .repos(repo.user(), repo.repo())
             .get_content()
             .path(path)
@@ -117,6 +156,8 @@ pub enum Error {
     DiffParseError(#[from] unidiff::Error),
     #[error("expected prefix in diff file name {0}, found none")]
     InvalidDiffFile(String),
+    #[error("could not find installation ID matching user {0}")]
+    NoInstallationId(String),
 }
 
 pub type Result<T = (), E = Error> = std::result::Result<T, E>;

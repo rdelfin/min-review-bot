@@ -1,5 +1,8 @@
 use crate::github::{GithubSource, Repo, RepoConnector};
 use clap::Parser;
+use jsonwebtoken::EncodingKey;
+use octocrab::{models::AppId, Octocrab};
+use std::{env, path::PathBuf};
 
 mod github;
 
@@ -14,8 +17,19 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv()?;
     let args = Args::parse();
-    let repo_connector = RepoConnector::new(GithubSource, Repo::from_path(args.repo)?);
+
+    let pem_path = env::var("GITHUB_PRIVATE_KEY_PATH")?;
+    let pem_data = tokio::fs::read(PathBuf::from(pem_path)).await?;
+    let repo = Repo::from_path(args.repo)?;
+
+    octocrab::initialise(Octocrab::builder().app(
+        AppId(env::var("GITHUB_APP_ID")?.parse()?),
+        EncodingKey::from_rsa_pem(&pem_data)?,
+    ))?;
+
+    let repo_connector = RepoConnector::new(GithubSource::new_authorized(repo.user()).await?, repo);
     println!("PR DIFF");
     println!(
         "{:?}",
