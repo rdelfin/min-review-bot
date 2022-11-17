@@ -1,6 +1,9 @@
 /// This file provides a basic interface into Github that can be easily replaced and mocked out for
 /// use when testing other parts of the codebase.
-use octocrab::{models::pulls::PullRequest, Octocrab};
+use octocrab::{
+    models::{issues::Comment, CommentId},
+    Octocrab,
+};
 use std::collections::BTreeSet;
 use unidiff::{PatchSet, PatchedFile};
 
@@ -52,15 +55,44 @@ impl<S: RepoSource> RepoConnector<S> {
             .get_file_data("docs/CODEOWNERS".into(), &self.repo)
             .await
     }
+
+    pub async fn add_or_edit_comment(
+        &self,
+        pr_num: u64,
+        comment_body: String,
+        bot_username: String,
+    ) -> Result {
+        let comment = self
+            .source
+            .list_pr_comments(pr_num, &self.repo)
+            .await?
+            .into_iter()
+            .filter(|comment| comment.user.login == bot_username)
+            .nth(0);
+
+        let comment = match comment {
+            Some(comment) => {
+                self.source
+                    .edit_pr_comment(comment_body, *comment.id, &self.repo)
+                    .await?
+            }
+            None => {
+                self.source
+                    .add_pr_comment(comment_body, pr_num, &self.repo)
+                    .await?
+            }
+        };
+        println!("COMMENT: {comment:#?}");
+
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
 pub trait RepoSource {
-    /// Returns data for a given pull request.
-    /// # Arguments
-    /// * `num` - The pull request number to fetch
-    /// * `repo` - The repository where you can find this PR
-    async fn get_pr_info(&self, num: u64, repo: &Repo) -> Result<PullRequest>;
+    async fn add_pr_comment(&self, body: String, num: u64, repo: &Repo) -> Result<Comment>;
+    async fn edit_pr_comment(&self, body: String, comment_id: u64, repo: &Repo) -> Result<Comment>;
+    async fn list_pr_comments(&self, num: u64, repo: &Repo) -> Result<Vec<Comment>>;
     async fn get_pr_diff(&self, num: u64, repo: &Repo) -> Result<String>;
     async fn get_file_data(&self, path: String, repo: &Repo) -> Result<String>;
 }
@@ -106,13 +138,44 @@ impl GithubSource {
 
 #[async_trait::async_trait]
 impl RepoSource for GithubSource {
-    async fn get_pr_info(&self, num: u64, repo: &Repo) -> Result<PullRequest> {
+    async fn add_pr_comment(&self, body: String, num: u64, repo: &Repo) -> Result<Comment> {
         Ok(self
             .octo_instance
-            .pulls(repo.user(), repo.repo())
-            .media_type(octocrab::params::pulls::MediaType::Full)
-            .get(num)
+            .issues(repo.user(), repo.repo())
+            .create_comment(num, body)
             .await?)
+    }
+
+    async fn edit_pr_comment(&self, body: String, comment_id: u64, repo: &Repo) -> Result<Comment> {
+        Ok(self
+            .octo_instance
+            .issues(repo.user(), repo.repo())
+            .update_comment(CommentId(comment_id), body)
+            .await?)
+    }
+
+    async fn list_pr_comments(&self, num: u64, repo: &Repo) -> Result<Vec<Comment>> {
+        let mut comments = vec![];
+        let mut page_num = 1u32;
+
+        loop {
+            let mut new_comments = self
+                .octo_instance
+                .issues(repo.user(), repo.repo())
+                .list_comments(num)
+                .per_page(100)
+                .page(page_num)
+                .send()
+                .await?
+                .take_items();
+            if new_comments.len() == 0 {
+                break;
+            }
+            page_num += 1;
+            comments.append(&mut new_comments);
+        }
+
+        Ok(comments)
     }
 
     async fn get_pr_diff(&self, num: u64, repo: &Repo) -> Result<String> {

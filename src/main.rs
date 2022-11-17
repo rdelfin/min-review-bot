@@ -35,21 +35,43 @@ async fn main() -> anyhow::Result<()> {
     let codeowners = codeowners::from_reader(codeowners_data.as_bytes());
 
     println!("PR ownership by file");
+    let mut all_owners_lines: Vec<String> = vec![];
     for (file, owners) in changed_files.into_iter().map(|file| {
         let owners = codeowners.of(&file);
         (file, owners)
     }) {
-        let owners_str = match owners {
-            Some(owners) => owners
-                .iter()
-                .map(|owner| format!("{}", owner))
-                .collect::<Vec<_>>()
-                .join(", "),
-            None => "".to_string(),
+        let (owners_str, owners_lines) = match owners {
+            Some(owners) => {
+                let owners_vec = owners
+                    .iter()
+                    .map(|owner| format!("{}", owner))
+                    .collect::<Vec<_>>();
+                (
+                    owners_vec.join(", "),
+                    owners_vec
+                        .into_iter()
+                        .map(|owner| format!("  * {}", owner))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                )
+            }
+            None => ("".to_string(), "".to_string()),
         };
+
         println!("{file}");
         println!("\t{}", owners_str);
+        all_owners_lines.push(format!("* {file}\n{owners_lines}"));
     }
+
+    let comment = format!(
+        "# File owners\nThe owners of the files being reviewed are:\n{}",
+        all_owners_lines.join("\n")
+    );
+
+    println!("Sending comment to PR {}:\n{comment}", args.pr_num);
+    repo_connector
+        .add_or_edit_comment(args.pr_num, comment, env::var("BOT_USERNAME")?)
+        .await?;
 
     Ok(())
 }
