@@ -31,14 +31,18 @@ async fn main() -> anyhow::Result<()> {
     ))?;
 
     let repo_connector = RepoConnector::new(GithubSource::new_authorized(repo.user()).await?, repo);
-    println!("PR DIFF");
-    println!(
-        "{:?}",
-        repo_connector.get_pr_changed_files(args.pr_num).await?
-    );
-    println!("CODEOWNERS");
+    let changed_files = repo_connector.get_pr_changed_files(args.pr_num).await?;
     let codeowners_data = repo_connector.get_codeowners_content().await?;
     let codeowners = codeowners::CodeOwners::parse(codeowners_data)?;
-    println!("{:#?}", codeowners);
+
+    println!("PR ownership by file");
+    for (file, owners) in changed_files.into_iter().map(|file| {
+        let owners = codeowners.owners(&file).unwrap_or(vec![]);
+        (file, owners)
+    }) {
+        println!("{file}");
+        println!("\t{}", owners.join(", "));
+    }
+
     Ok(())
 }

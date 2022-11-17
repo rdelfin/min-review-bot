@@ -1,7 +1,8 @@
+use glob::Pattern;
 use logos::{Logos, Span};
 /// This file is responsible for parsing the codeowners file and returning a logical struct from
 /// it which we can use to later evaluate ownership rules.
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, path::Path};
 
 #[derive(Debug, Clone)]
 pub struct CodeOwners {
@@ -163,6 +164,58 @@ enum CodeOwnersToken {
     Error,
 }
 
-fn matches_pattern(file_path: &str, pattern: &str) -> bool {
-    true
+fn matches_pattern<P: AsRef<Path>>(file_path: P, pattern: &str) -> bool {
+    let pattern = pattern.strip_prefix("/").unwrap_or(pattern);
+    let pattern = pattern.strip_suffix("/").unwrap_or(pattern);
+
+    let pattern = match Pattern::new(pattern) {
+        Ok(p) => p,
+        Err(_) => {
+            return false;
+        }
+    };
+    let mut path_opt = Some(file_path.as_ref());
+
+    while let Some(path) = path_opt {
+        if pattern.matches_path(path) {
+            return true;
+        }
+        path_opt = path.parent();
+    }
+
+    return false;
+}
+
+#[cfg(test)]
+mod test {
+    use super::matches_pattern;
+    use anyhow::Result;
+
+    #[test]
+    fn test_match_basic() -> Result<()> {
+        assert!(matches_pattern(
+            "/this/is/a/file.txt",
+            "/this/is/a/file.txt"
+        ));
+        assert!(!matches_pattern(
+            "/this/is/a/file.txt",
+            "/this/is/a/different/file.txt"
+        ));
+        assert!(!matches_pattern(
+            "/this/is/a/file.txt",
+            "/this/is/a/different_file.txt"
+        ));
+        assert!(matches_pattern("/this/is/a/file.txt", "/this/is/a/*"));
+        assert!(matches_pattern("/this/is/a/file.txt", "*"));
+        assert!(matches_pattern("/this/is/a/file.txt", "*/file.txt"));
+        assert!(matches_pattern("/this/is/a/file.txt", "*.txt"));
+        assert!(matches_pattern("/this/is/a/file.txt", "/this/is/a"));
+        assert!(matches_pattern("/this/is/a/file.txt", "/this/is"));
+        assert!(matches_pattern("/this/is/a/file.txt", "/this/is/"));
+        assert!(!matches_pattern("/this/is/a/file.txt", "/this/is/not"));
+        assert!(matches_pattern("/this/is/a/file.txt", "/this/*/a"));
+        assert!(matches_pattern("/this/is/a/file.txt", "/this/**/file.txt"));
+
+        Ok(())
+    }
 }

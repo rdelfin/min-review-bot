@@ -9,6 +9,7 @@ async-trait = "0.1.58"
 base64 = "0.13.1"
 clap = { version = "4.0.25", features = ["derive"] }
 dotenv = "0.15.0"
+glob = "0.3.0"
 jsonwebtoken = "8.1.1"
 logos = "0.12.1"
 octocrab = "0.17.0"
