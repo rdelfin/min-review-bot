@@ -4,6 +4,7 @@ use jsonwebtoken::EncodingKey;
 use octocrab::{models::AppId, Octocrab};
 use std::{env, path::PathBuf};
 
+mod codeowners;
 mod github;
 
 #[derive(Parser, Debug)] // requires `derive` feature
@@ -36,6 +37,8 @@ async fn main() -> anyhow::Result<()> {
         repo_connector.get_pr_changed_files(args.pr_num).await?
     );
     println!("CODEOWNERS");
-    println!("{}", repo_connector.get_codeowners_content().await?);
+    let codeowners_data = repo_connector.get_codeowners_content().await?;
+    let codeowners = codeowners::CodeOwners::parse(codeowners_data)?;
+    println!("{:#?}", codeowners);
     Ok(())
 }

@@ -1,3 +1,5 @@
+/// This file provides a basic interface into Github that can be easily replaced and mocked out for
+/// use when testing other parts of the codebase.
 use octocrab::{models::pulls::PullRequest, Octocrab};
 use std::collections::BTreeSet;
 use unidiff::{PatchSet, PatchedFile};
