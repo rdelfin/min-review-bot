@@ -4,7 +4,6 @@ use jsonwebtoken::EncodingKey;
 use octocrab::{models::AppId, Octocrab};
 use std::{env, path::PathBuf};
 
-mod codeowners;
 mod github;
 
 #[derive(Parser, Debug)] // requires `derive` feature
@@ -33,15 +32,23 @@ async fn main() -> anyhow::Result<()> {
     let repo_connector = RepoConnector::new(GithubSource::new_authorized(repo.user()).await?, repo);
     let changed_files = repo_connector.get_pr_changed_files(args.pr_num).await?;
     let codeowners_data = repo_connector.get_codeowners_content().await?;
-    let codeowners = codeowners::CodeOwners::parse(codeowners_data)?;
+    let codeowners = codeowners::from_reader(codeowners_data.as_bytes());
 
     println!("PR ownership by file");
     for (file, owners) in changed_files.into_iter().map(|file| {
-        let owners = codeowners.owners(&file).unwrap_or(vec![]);
+        let owners = codeowners.of(&file);
         (file, owners)
     }) {
+        let owners_str = match owners {
+            Some(owners) => owners
+                .iter()
+                .map(|owner| format!("{}", owner))
+                .collect::<Vec<_>>()
+                .join(", "),
+            None => "".to_string(),
+        };
         println!("{file}");
-        println!("\t{}", owners.join(", "));
+        println!("\t{}", owners_str);
     }
 
     Ok(())
