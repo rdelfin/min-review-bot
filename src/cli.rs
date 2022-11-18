@@ -14,6 +14,8 @@ struct Args {
     pr_num: u64,
     #[arg(long, short)]
     repo: String,
+    #[arg(long, short, default_value_t = true)]
+    update_github: bool,
 }
 
 #[tokio::main]
@@ -38,7 +40,26 @@ async fn main() -> anyhow::Result<()> {
     let changed_files_slc: Vec<&str> = changed_files.iter().map(|f| f.as_ref()).collect();
     let mut conditional = OwnersConditional::from_codeowners(&codeowners, &changed_files_slc[..]);
     conditional.reduce();
-    println!("Conditional: {conditional}");
+
+    if args.update_github {
+        let file_owners = min_review_bot::display_file_owners(&codeowners, &changed_files_slc[..]);
+        println!("Required reviewers: {conditional}");
+
+        let comment = format!(
+            r#"# File Owners
+The minimum set of reviewers required are:
+`{conditional}`
+<details>
+    <summary>Details</summary>
+    {file_owners}
+</details>"#
+        );
+        println!("Updating comment on PR {}:", args.pr_num);
+        println!("{comment}");
+        repo_connector
+            .add_or_edit_comment(args.pr_num, comment, env::var("BOT_USERNAME")?)
+            .await?;
+    }
 
     Ok(())
 }

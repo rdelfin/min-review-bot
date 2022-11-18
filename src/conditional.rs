@@ -112,7 +112,7 @@ impl Display for OwnersItem {
     }
 }
 
-fn to_owners_map<'f, 'c>(
+pub fn to_owners_map<'f, 'c>(
     codeowners: &'c Owners,
     files: &[&'f str],
 ) -> BTreeMap<&'f str, Option<&'c Vec<Owner>>> {

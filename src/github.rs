@@ -70,19 +70,18 @@ impl<S: RepoSource> RepoConnector<S> {
             .filter(|comment| comment.user.login == bot_username)
             .nth(0);
 
-        let comment = match comment {
+        match comment {
             Some(comment) => {
                 self.source
                     .edit_pr_comment(comment_body, *comment.id, &self.repo)
-                    .await?
+                    .await?;
             }
             None => {
                 self.source
                     .add_pr_comment(comment_body, pr_num, &self.repo)
-                    .await?
+                    .await?;
             }
         };
-        println!("COMMENT: {comment:#?}");
 
         Ok(())
     }
