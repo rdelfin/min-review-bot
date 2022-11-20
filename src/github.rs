@@ -1,7 +1,8 @@
 /// This file provides a basic interface into Github that can be easily replaced and mocked out for
 /// use when testing other parts of the codebase.
 use octocrab::{
-    models::{issues::Comment, CommentId},
+    models::{issues::Comment, pulls::PullRequest, CommentId},
+    params::State as PrState,
     Octocrab,
 };
 use std::collections::BTreeSet;
@@ -56,6 +57,10 @@ impl<S: RepoSource> RepoConnector<S> {
             .await
     }
 
+    pub async fn get_open_prs(&self) -> Result<Vec<PullRequest>> {
+        self.source.list_open_prs(&self.repo).await
+    }
+
     pub async fn add_or_edit_comment(
         &self,
         pr_num: u64,
@@ -94,6 +99,7 @@ pub trait RepoSource {
     async fn list_pr_comments(&self, num: u64, repo: &Repo) -> Result<Vec<Comment>>;
     async fn get_pr_diff(&self, num: u64, repo: &Repo) -> Result<String>;
     async fn get_file_data(&self, path: String, repo: &Repo) -> Result<String>;
+    async fn list_open_prs(&self, repo: &Repo) -> Result<Vec<PullRequest>>;
 }
 
 #[derive(Debug)]
@@ -207,6 +213,32 @@ impl RepoSource for GithubSource {
             .replace("\n", "");
 
         Ok(String::from_utf8(base64::decode(raw_contents)?)?)
+    }
+
+    async fn list_open_prs(&self, repo: &Repo) -> Result<Vec<PullRequest>> {
+        let mut prs = vec![];
+        let mut page_num = 1u32;
+
+        loop {
+            let mut new_prs = self
+                .octo_instance
+                .pulls(repo.user(), repo.repo())
+                .list()
+                .head("main")
+                .per_page(100)
+                .page(page_num)
+                .state(PrState::Open)
+                .send()
+                .await?
+                .take_items();
+            if new_prs.len() == 0 {
+                break;
+            }
+            page_num += 1;
+            prs.append(&mut new_prs);
+        }
+
+        Ok(prs)
     }
 }
 
