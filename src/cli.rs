@@ -38,8 +38,8 @@ async fn main() -> anyhow::Result<()> {
     let codeowners = codeowners::from_reader(codeowners_data.as_bytes());
 
     let changed_files_slc: Vec<&str> = changed_files.iter().map(|f| f.as_ref()).collect();
-    let mut conditional = OwnersConditional::from_codeowners(&codeowners, &changed_files_slc[..]);
-    conditional.reduce();
+    let conditional =
+        OwnersConditional::from_codeowners(&codeowners, &changed_files_slc[..]).reduce();
 
     if args.update_github {
         let file_owners = min_review_bot::display_file_owners(&codeowners, &changed_files_slc[..]);

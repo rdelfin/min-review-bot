@@ -6,14 +6,9 @@ use std::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OwnersConditional {
-    And(Vec<OwnersItem>),
-    Or(Vec<OwnersItem>),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum OwnersItem {
+    And(Vec<OwnersConditional>),
+    Or(Vec<OwnersConditional>),
     Owner(String),
-    Conditional(OwnersConditional),
 }
 
 impl OwnersConditional {
@@ -37,21 +32,22 @@ impl OwnersConditional {
             }
 
             let new_item = if owners.len() == 1 {
-                OwnersItem::Owner(format!("{}", owners[0]))
+                OwnersConditional::Owner(format!("{}", owners[0]))
             } else {
-                OwnersItem::Conditional(OwnersConditional::Or(
+                OwnersConditional::Or(
                     owners
                         .iter()
-                        .map(|owner| OwnersItem::Owner(format!("{owner}")))
+                        .map(|owner| OwnersConditional::Owner(format!("{owner}")))
                         .collect(),
-                ))
+                )
             };
+            // Top level ownership is always an `And`
             min_owners = match min_owners {
                 OwnersConditional::And(mut and_items) => {
                     and_items.push(new_item);
                     OwnersConditional::And(and_items)
                 }
-                OwnersConditional::Or(_) => {
+                _ => {
                     unreachable!()
                 }
             };
@@ -60,23 +56,60 @@ impl OwnersConditional {
         min_owners
     }
 
-    pub fn reduce(&mut self) {
+    pub fn reduce(self) -> OwnersConditional {
+        self.reduce_duplicates().reduce_or_duplicates()
+    }
+
+    fn reduce_duplicates(self) -> OwnersConditional {
         match self {
             OwnersConditional::And(items) => {
-                // Remove duplicate items
-                let mut to_remove = vec![];
-                for i in 0..(items.len() - 1) {
-                    for j in (i + 1)..items.len() {
-                        if items[i] == items[j] {
-                            to_remove.push(j);
+                // Remove all duplicate items
+                let mut new_items = items.clone();
+                for i in (0..new_items.len()).rev() {
+                    for j in 0..i {
+                        if new_items[j] == new_items[i] {
+                            new_items.remove(i);
+                            break;
                         }
                     }
                 }
-                for item in to_remove.iter().rev() {
-                    items.remove(*item);
-                }
+                OwnersConditional::And(new_items)
             }
-            OwnersConditional::Or(_) => {}
+            OwnersConditional::Or(items) => OwnersConditional::Or(items),
+            OwnersConditional::Owner(owner) => OwnersConditional::Owner(owner),
+        }
+    }
+
+    fn reduce_or_duplicates(self) -> OwnersConditional {
+        match self {
+            OwnersConditional::And(items) => {
+                // Remove all duplicate items
+                let mut new_items = items.clone();
+                for i in (0..new_items.len()).rev() {
+                    for j in 0..i {
+                        let remove = match (
+                            new_items.get(i).expect("index exists"),
+                            new_items.get(j).expect("index exists"),
+                        ) {
+                            (OwnersConditional::Or(items), OwnersConditional::Owner(owner)) => {
+                                items.contains(&OwnersConditional::Owner(owner.clone()))
+                            }
+                            (OwnersConditional::Owner(owner), OwnersConditional::Or(items)) => {
+                                items.contains(&OwnersConditional::Owner(owner.clone()))
+                            }
+                            _ => false,
+                        };
+
+                        if remove {
+                            new_items.remove(i);
+                            break;
+                        }
+                    }
+                }
+                OwnersConditional::And(new_items)
+            }
+            OwnersConditional::Or(items) => OwnersConditional::Or(items),
+            OwnersConditional::Owner(owner) => OwnersConditional::Owner(owner),
         }
     }
 }
@@ -94,21 +127,9 @@ impl Display for OwnersConditional {
                 .map(|item| format!("{item}"))
                 .collect::<Vec<_>>()
                 .join(" || "),
+            OwnersConditional::Owner(name) => name.clone(),
         };
         write!(f, "{text}")
-    }
-}
-
-impl Display for OwnersItem {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            OwnersItem::Owner(name) => {
-                write!(f, "{name}")
-            }
-            OwnersItem::Conditional(cond) => {
-                write!(f, "({cond})")
-            }
-        }
     }
 }
 
@@ -123,4 +144,84 @@ pub fn to_owners_map<'f, 'c>(
             (*file, owners)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod test {
+    use super::OwnersConditional;
+    use codeowners::Owner;
+
+    #[test]
+    fn test_from_owners() -> anyhow::Result<()> {
+        let owners_1 = vec![
+            Owner::Username("owner_a".into()),
+            Owner::Username("owner_b".into()),
+        ];
+        let owners_2 = vec![Owner::Username("owner_c".into())];
+        let owners_3 = vec![Owner::Username("owner_d".into())];
+        let owners_4 = vec![Owner::Username("owner_a".into())];
+
+        assert_eq!(
+            OwnersConditional::from_owners_map(
+                [
+                    ("a/file", Some(&owners_1)),
+                    ("b/file", Some(&owners_2)),
+                    ("d/file", Some(&owners_3)),
+                    ("e/file", Some(&owners_4)),
+                    ("w/file", None),
+                ]
+                .into_iter()
+                .collect(),
+            ),
+            OwnersConditional::And(vec![
+                OwnersConditional::Or(vec![
+                    OwnersConditional::Owner("owner_a".into()),
+                    OwnersConditional::Owner("owner_b".into())
+                ]),
+                OwnersConditional::Owner("owner_c".into()),
+                OwnersConditional::Owner("owner_d".into()),
+                OwnersConditional::Owner("owner_a".into()),
+            ])
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reduce() -> anyhow::Result<()> {
+        assert_eq!(
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_c".into()),
+                OwnersConditional::Owner("owner_d".into()),
+                OwnersConditional::Owner("owner_c".into()),
+                OwnersConditional::Owner("owner_c".into()),
+                OwnersConditional::Owner("owner_e".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+            .reduce(),
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_c".into()),
+                OwnersConditional::Owner("owner_d".into()),
+                OwnersConditional::Owner("owner_e".into()),
+            ])
+        );
+
+        assert_eq!(
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_c".into()),
+                OwnersConditional::Owner("owner_a".into()),
+                OwnersConditional::Or(vec![
+                    OwnersConditional::Owner("owner_c".into()),
+                    OwnersConditional::Owner("owner_e".into())
+                ]),
+            ])
+            .reduce(),
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_c".into()),
+                OwnersConditional::Owner("owner_a".into())
+            ])
+        );
+
+        Ok(())
+    }
 }
