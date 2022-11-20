@@ -1,5 +1,6 @@
 use codeowners::Owners;
 
+pub mod cache;
 pub mod conditional;
 pub mod github;
 
