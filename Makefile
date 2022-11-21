@@ -7,5 +7,5 @@ build:
 	docker build . -t ${TAG}
 
 .PHONY: publish
-publish:
+publish: build
 	docker push ${TAG}
