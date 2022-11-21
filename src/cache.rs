@@ -7,13 +7,13 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-pub struct DbConnector {
+pub struct Cache {
     pool: SqlitePool,
 }
 
-impl DbConnector {
-    pub async fn new() -> sqlx::Result<DbConnector> {
-        let connector = DbConnector {
+impl Cache {
+    pub async fn new() -> sqlx::Result<Cache> {
+        let connector = Cache {
             pool: SqlitePoolOptions::new()
                 .max_connections(10)
                 .connect("sqlite::memory:")

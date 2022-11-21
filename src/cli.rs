@@ -25,7 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     let pem_path = env::var("GITHUB_PRIVATE_KEY_PATH")?;
     let pem_data = tokio::fs::read(PathBuf::from(pem_path)).await?;
-    let repo = Repo::from_path(args.repo)?;
+    let repo = Repo::from_path(&args.repo)?;
 
     octocrab::initialise(Octocrab::builder().app(
         AppId(env::var("GITHUB_APP_ID")?.parse()?),

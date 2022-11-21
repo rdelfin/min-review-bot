@@ -19,10 +19,10 @@ impl Repo {
         Repo { user, repo }
     }
 
-    pub fn from_path(path: String) -> Result<Repo, Error> {
+    pub fn from_path(path: &str) -> Result<Repo, Error> {
         let segments: Vec<_> = path.split("/").collect();
         if segments.len() != 2 {
-            return Err(Error::InvalidPath(path));
+            return Err(Error::InvalidPath(path.into()));
         }
 
         Ok(Repo::new(segments[0].into(), segments[1].into()))
