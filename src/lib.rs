@@ -2,6 +2,7 @@ use codeowners::Owners;
 
 pub mod cache;
 pub mod conditional;
+pub mod config;
 pub mod github;
 
 pub fn display_file_owners(codeowners: &Owners, files: &[&str]) -> String {

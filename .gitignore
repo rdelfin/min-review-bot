@@ -17,3 +17,4 @@ Cargo.lock
 .env
 *.pem
 test.db
+config.toml

@@ -117,16 +117,22 @@ impl OwnersConditional {
 impl Display for OwnersConditional {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let text = match self {
-            OwnersConditional::And(items) => items
-                .iter()
-                .map(|item| format!("{item}"))
-                .collect::<Vec<_>>()
-                .join(" && "),
-            OwnersConditional::Or(items) => items
-                .iter()
-                .map(|item| format!("{item}"))
-                .collect::<Vec<_>>()
-                .join(" || "),
+            OwnersConditional::And(items) => format!(
+                "({})",
+                items
+                    .iter()
+                    .map(|item| format!("{item}"))
+                    .collect::<Vec<_>>()
+                    .join(" && ")
+            ),
+            OwnersConditional::Or(items) => format!(
+                "({})",
+                items
+                    .iter()
+                    .map(|item| format!("{item}"))
+                    .collect::<Vec<_>>()
+                    .join(" || ")
+            ),
             OwnersConditional::Owner(name) => name.clone(),
         };
         write!(f, "{text}")
