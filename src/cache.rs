@@ -17,7 +17,7 @@ impl Cache {
         let connector = Cache {
             pool: SqlitePoolOptions::new()
                 .max_connections(10)
-                .connect(&format!("sqlite::{}", config.db_path.display()))
+                .connect(&format!("sqlite:{}", config.db_path.display()))
                 .await?,
         };
         connector.initialise_db().await?;
@@ -27,7 +27,7 @@ impl Cache {
     async fn initialise_db(&self) -> sqlx::Result<()> {
         self.pool
             .execute(
-                "CREATE TABLE last_checked_change (\
+                "CREATE TABLE IF NOT EXISTS last_checked_change (\
                     pr_id UNSIGNED INTEGER NOT NULL PRIMARY KEY,\
                     last_updated_unixus INTEGER NOT NULL\
                 );",
