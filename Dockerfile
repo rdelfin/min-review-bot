@@ -1,15 +1,22 @@
 ARG ARCH=
-FROM ${ARCH}rust:1.65-buster as builder
+FROM ${ARCH}lukemathwalker/cargo-chef:latest-rust-1 AS chef
+WORKDIR app
 
-WORKDIR /usr/src
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-ADD . ./
-ADD min.env .env
-
-RUN cargo build --release
+FROM ${ARCH}chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY . .
+COPY min.env .env
+RUN cargo build --release --bin daemon
 
 FROM ${ARCH}debian:buster-slim
-COPY --from=builder /usr/src/target/release/daemon /usr/bin/min_review_daemon
+COPY --from=builder /app/target/release/daemon /usr/local/bin/min_review_daemon
 
 RUN apt-get update \
     && apt-get install -y libssl1.1 sqlite3 \

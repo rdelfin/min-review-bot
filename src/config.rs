@@ -1,10 +1,5 @@
 use serde::Deserialize;
-use std::{
-    collections::BTreeSet,
-    fmt::{self, Debug, Formatter},
-    path::PathBuf,
-    time::Duration,
-};
+use std::{collections::BTreeSet, path::PathBuf, time::Duration};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {

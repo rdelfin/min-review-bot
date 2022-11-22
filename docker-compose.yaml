@@ -4,4 +4,4 @@ services:
     volumes:
       - ./config.toml:/etc/reviewbot/config.toml:ro
       - ./private_key.pem:/etc/reviewbot/private_key.pem:ro
-    entrypoint: ["min_review_daemon", "--config", "/etc/reviewbot/config.toml"]
+    command: ["min_review_daemon", "--config", "/etc/reviewbot/config.toml"]
