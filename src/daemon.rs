@@ -33,6 +33,8 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let config: Config = toml::de::from_slice(&tokio::fs::read(args.config).await?)?;
 
+    info!("Config: {config:#?}");
+
     let pem_data = tokio::fs::read(PathBuf::from(&config.github.private_key_path)).await?;
     let repo = Repo::from_path(&config.repo)?;
 
