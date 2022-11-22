@@ -1,5 +1,5 @@
 ARG ARCH=
-FROM ${ARCH}lukemathwalker/cargo-chef:latest-rust-1 AS chef
+FROM ${ARCH}lukemathwalker/cargo-chef:latest-rust-1-buster AS chef
 WORKDIR app
 
 FROM chef AS planner
