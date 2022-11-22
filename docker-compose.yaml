@@ -1,7 +1,9 @@
+version: '3'
 services:
   daemon:
     image: registry.rdelfin.com/min_review_bot:latest
     volumes:
       - ./config.toml:/etc/reviewbot/config.toml:ro
       - ./private_key.pem:/etc/reviewbot/private_key.pem:ro
+    restart: always
     command: ["min_review_daemon", "--config", "/etc/reviewbot/config.toml"]

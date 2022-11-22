@@ -19,7 +19,7 @@ FROM ${ARCH}debian:buster-slim
 COPY --from=builder /app/target/release/daemon /usr/local/bin/min_review_daemon
 
 RUN apt-get update \
-    && apt-get install -y libssl1.1 sqlite3 \
+    && apt-get install -y libssl1.1 sqlite3 ca-certificates \
     && apt-get autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists
