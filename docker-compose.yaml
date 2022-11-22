@@ -5,5 +5,6 @@ services:
     volumes:
       - ./config.toml:/etc/reviewbot/config.toml:ro
       - ./private_key.pem:/etc/reviewbot/private_key.pem:ro
+      - ./data.db:/var/cache/reviewbot/data.db:ro
     restart: always
     command: ["min_review_daemon", "--config", "/etc/reviewbot/config.toml"]

@@ -1,3 +1,4 @@
+use crate::config::Config;
 use sqlx::{
     sqlite::{SqlitePool, SqlitePoolOptions},
     Executor,
@@ -12,11 +13,11 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub async fn new() -> sqlx::Result<Cache> {
+    pub async fn new(config: &Config) -> sqlx::Result<Cache> {
         let connector = Cache {
             pool: SqlitePoolOptions::new()
                 .max_connections(10)
-                .connect("sqlite::memory:")
+                .connect(&format!("sqlite::{}", config.db_path.display()))
                 .await?,
         };
         connector.initialise_db().await?;

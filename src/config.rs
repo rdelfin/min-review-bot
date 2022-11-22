@@ -8,6 +8,7 @@ pub struct Config {
     pub bot_username: String,
     pub github: GithubConfig,
     pub sleep_period: Duration,
+    pub db_path: PathBuf,
     #[serde(default)]
     pub dry_run: bool,
 }

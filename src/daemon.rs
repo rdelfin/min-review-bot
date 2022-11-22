@@ -38,7 +38,7 @@ async fn main() -> anyhow::Result<()> {
     let pem_data = tokio::fs::read(PathBuf::from(&config.github.private_key_path)).await?;
     let repo = Repo::from_path(&config.repo)?;
 
-    let db = Cache::new().await?;
+    let db = Cache::new(&config).await?;
 
     octocrab::initialise(Octocrab::builder().app(
         AppId(config.github.app_id),
