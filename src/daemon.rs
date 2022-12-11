@@ -29,7 +29,11 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    SimpleLogger::new().with_level(LevelFilter::Info).init()?;
+    SimpleLogger::new()
+        .with_level(LevelFilter::Info)
+        // sqlx prints *every* query. We don't need that
+        .with_module_level("sqlx", LevelFilter::Warn)
+        .init()?;
     let args = Args::parse();
     let config: Config = toml::de::from_slice(&tokio::fs::read(args.config).await?)?;
 
