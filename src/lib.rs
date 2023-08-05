@@ -4,6 +4,7 @@ pub mod cache;
 pub mod conditional;
 pub mod config;
 pub mod github;
+pub mod metrics;
 
 pub fn display_file_owners(codeowners: &Owners, files: &[&str]) -> String {
     let mut display_str = format!("<ul>");

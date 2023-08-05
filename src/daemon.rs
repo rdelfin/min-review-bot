@@ -1,12 +1,13 @@
 use clap::Parser;
 use codeowners::Owners;
 use jsonwebtoken::EncodingKey;
-use log::{error, info, LevelFilter};
+use log::{error, info, warn, LevelFilter};
 use min_review_bot::{
     cache::Cache,
     conditional::OwnersConditional,
     config::Config,
     github::{GithubSource, Repo, RepoConnector, RepoSource},
+    metrics::MetricsReporter,
 };
 use octocrab::{
     models::{pulls::PullRequest, AppId},
@@ -36,8 +37,11 @@ async fn main() -> anyhow::Result<()> {
         .init()?;
     let args = Args::parse();
     let config: Config = toml::de::from_slice(&tokio::fs::read(args.config).await?)?;
-
     info!("Config: {config:#?}");
+
+    if let Err(e) = MetricsReporter::initialise(&config.datadog_socket) {
+        warn!("There was an error initialising connection to datadog: {e}; continuing")
+    }
 
     let pem_data = tokio::fs::read(PathBuf::from(&config.github.private_key_path)).await?;
     let repo = Repo::from_path(&config.repo)?;
@@ -52,9 +56,11 @@ async fn main() -> anyhow::Result<()> {
 
     let mut next_awake = Instant::now() + config.sleep_period;
     loop {
+        let loop_start = Instant::now();
         if let Err(e) = inner_update_loop(&db, &repo_connector, &config).await {
             error!("There was an error: {e}");
         }
+        MetricsReporter::report_loop_data(loop_start.elapsed(), config.sleep_period);
         tokio::time::sleep_until(next_awake).await;
         next_awake += config.sleep_period;
     }

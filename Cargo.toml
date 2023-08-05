@@ -29,3 +29,4 @@ thiserror = "1"
 tokio = { version = "1.21.2", features = ["full"] }
 toml = "0.5.9"
 unidiff = "0.3.3"
+datadog-statsd = { git = "https://github.com/dmweis/rust-dogstatsd", rev = "fcb310c3ed55bc83b840b729013d2ba8203530bf" }
