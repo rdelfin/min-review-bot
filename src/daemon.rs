@@ -82,7 +82,7 @@ async fn inner_update_loop(
     let codeowners = codeowners::from_reader(codeowners_data.as_bytes());
 
     for pr in prs {
-        if should_update_pr(&pr, &updates) {
+        if should_update_pr(&pr, &updates, config) {
             let (conditional, changed_files) =
                 get_pr_conditional(pr.number, repo_connector, &codeowners).await?;
             update_pr(
@@ -101,17 +101,25 @@ async fn inner_update_loop(
     Ok(())
 }
 
-fn should_update_pr(pr: &PullRequest, updates: &BTreeMap<u64, SystemTime>) -> bool {
-    updates
-        .get(&pr.number)
-        .map(|cached_update_time| {
-            if let Some(updated_at) = pr.updated_at {
-                cached_update_time < &SystemTime::from(updated_at)
-            } else {
-                false
-            }
-        })
-        .unwrap_or(true)
+fn should_update_pr(
+    pr: &PullRequest,
+    updates: &BTreeMap<u64, SystemTime>,
+    config: &Config,
+) -> bool {
+    if config.banned_prs.contains(&pr.number) {
+        false
+    } else {
+        updates
+            .get(&pr.number)
+            .map(|cached_update_time| {
+                if let Some(updated_at) = pr.updated_at {
+                    cached_update_time < &SystemTime::from(updated_at)
+                } else {
+                    false
+                }
+            })
+            .unwrap_or(true)
+    }
 }
 
 async fn get_pr_conditional<S: RepoSource>(
