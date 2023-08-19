@@ -76,22 +76,35 @@ async fn inner_update_loop(
     let (prs, codeowners, updates) = fetch_pr_info(db, repo_connector, config).await?;
 
     for pr in prs {
-        if should_update_pr(&pr, &updates, config) {
-            let (conditional, changed_files) =
-                get_pr_conditional(pr.number, repo_connector, &codeowners).await?;
-            update_pr(
-                config,
-                &pr,
-                repo_connector,
-                db,
-                &codeowners,
-                conditional,
-                changed_files,
-            )
-            .await?;
-        }
+        process_pr(&pr, &updates, &codeowners, config, db, repo_connector).await?;
     }
 
+    Ok(())
+}
+
+#[instrument(level = "info", skip_all, fields(pr_num = pr.number), err)]
+async fn process_pr(
+    pr: &PullRequest,
+    updates: &BTreeMap<u64, SystemTime>,
+    codeowners: &Owners,
+    config: &Config,
+    db: &Cache,
+    repo_connector: &RepoConnector<GithubSource>,
+) -> anyhow::Result<()> {
+    if should_update_pr(&pr, &updates, config) {
+        let (conditional, changed_files) =
+            get_pr_conditional(pr.number, repo_connector, &codeowners).await?;
+        update_pr(
+            config,
+            &pr,
+            repo_connector,
+            db,
+            &codeowners,
+            conditional,
+            changed_files,
+        )
+        .await?;
+    }
     Ok(())
 }
 
