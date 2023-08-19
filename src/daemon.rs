@@ -209,10 +209,12 @@ fn setup_tracing() -> anyhow::Result<()> {
     let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()
         .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        /*.with_resource(Resource::new(vec![KeyValue::new(
-            "service.name",
-            "min_review_bot",
-        )]))*/
+        .with_trace_config(
+            opentelemetry::sdk::trace::config().with_resource(Resource::new(vec![KeyValue::new(
+                "service.name",
+                "min_review_bot",
+            )])),
+        )
         .install_simple()?;
 
     // Create a tracing layer with the configured tracer

@@ -2,7 +2,7 @@ use anyhow::Result;
 use datadog_statsd::Client as DdClient;
 use lazy_static::lazy_static;
 use opentelemetry::{
-    metrics::{Histogram, Meter, MeterProvider, ObservableGauge},
+    metrics::{Histogram, Meter, MeterProvider},
     sdk::{
         metrics::reader::{DefaultAggregationSelector, DefaultTemporalitySelector},
         Resource,
@@ -61,7 +61,7 @@ impl MetricsReporter {
             .timer("loop_duration", true_duration.as_secs_f64() * 1000., &None);
         mr.dd_client.gauge("loop_load", loop_load, &None);
         mr.loop_duration_timer.record(loop_duration_ms, &[]);
-        mr.loop_load_hist.observe(loop_load, &[]);
+        mr.loop_load_hist.record(loop_load, &[]);
     }
 
     fn init_meter() -> Result<Meter> {
