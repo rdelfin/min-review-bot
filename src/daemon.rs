@@ -1,7 +1,6 @@
 use clap::Parser;
 use codeowners::Owners;
 use jsonwebtoken::EncodingKey;
-use log::{error, info, warn, LevelFilter};
 use min_review_bot::{
     cache::Cache,
     conditional::OwnersConditional,
@@ -13,13 +12,14 @@ use octocrab::{
     models::{pulls::PullRequest, AppId},
     Octocrab,
 };
-use simple_logger::SimpleLogger;
 use std::{
     collections::{BTreeMap, BTreeSet},
     path::PathBuf,
     time::{Duration, SystemTime},
 };
 use tokio::time::Instant;
+use tracing::{error, info, warn};
+use tracing_subscriber::layer::SubscriberExt;
 
 #[derive(Parser, Debug)]
 #[command(term_width = 0)]
@@ -30,17 +30,16 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    SimpleLogger::new()
-        .with_level(LevelFilter::Info)
-        // sqlx prints *every* query. We don't need that
-        .with_module_level("sqlx", LevelFilter::Warn)
-        .init()?;
+    setup_tracing();
     let args = Args::parse();
     let config: Config = toml::de::from_slice(&tokio::fs::read(args.config).await?)?;
-    info!("Config: {config:#?}");
+    info!(config = ?config, "starting node");
 
     if let Err(e) = MetricsReporter::initialise(&config.datadog_socket) {
-        warn!("There was an error initialising connection to datadog: {e}; continuing")
+        warn!(
+            error = ?e,
+            "There was an error initialising connection to datadog; continuing"
+        );
     }
 
     let pem_data = tokio::fs::read(PathBuf::from(&config.github.private_key_path)).await?;
@@ -58,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     loop {
         let loop_start = Instant::now();
         if let Err(e) = inner_update_loop(&db, &repo_connector, &config).await {
-            error!("There was an error: {e}");
+            error!(error = ?e, "there was an error");
         }
         MetricsReporter::report_loop_data(loop_start.elapsed(), config.sleep_period);
         tokio::time::sleep_until(next_awake).await;
@@ -134,7 +133,7 @@ async fn get_pr_conditional<S: RepoSource>(
     codeowners: &Owners,
 ) -> anyhow::Result<(OwnersConditional, BTreeSet<String>)> {
     let changed_files = repo_connector.get_pr_changed_files(pr_id).await?;
-    info!("Changed files: {changed_files:?}");
+    info!(changed_files =? changed_files, "changed files");
     let changed_files_slc: Vec<&str> = changed_files.iter().map(|f| f.as_ref()).collect();
     Ok((
         OwnersConditional::from_codeowners(codeowners, &changed_files_slc[..]).reduce(),
@@ -151,7 +150,7 @@ async fn update_pr(
     conditional: OwnersConditional,
     changed_files: BTreeSet<String>,
 ) -> anyhow::Result<()> {
-    info!("Updating PR {}", pr.number);
+    info!(pr_number = pr.number, "updating PR");
     let file_owners = min_review_bot::display_file_owners(
         &codeowners,
         &changed_files.iter().map(|f| f.as_ref()).collect::<Vec<_>>(),
@@ -168,8 +167,9 @@ The minimum set of reviewers required are:
 
     if config.dry_run {
         info!(
-            "Would have updated comment in PR {} with {comment:?}",
-            pr.id.0
+            pr_number = pr.id.0,
+            comment = ?comment,
+            "would have updated comment",
         );
     } else {
         repo_connector
@@ -184,4 +184,28 @@ The minimum set of reviewers required are:
     db.update_pr(pr.id.0, updated_at_systime).await?;
 
     Ok(())
+}
+
+fn setup_tracing() {
+    // Configure a custom event formatter
+    let format = tracing_subscriber::fmt::format()
+        .with_line_number(true)
+        .with_thread_names(true) // include the name of the current thread
+        .with_timer(tracing_subscriber::fmt::time::SystemTime) // use system time
+        .compact(); // use the `Compact` formatting style.
+
+    let console_layer = tracing_subscriber::fmt::layer().event_format(format);
+
+    // Create a tracing subscriber with the default level INFO
+    // To change the level, set the environment variable RUST_LOG before
+    // running the executable: $ RUST_LOG=error ./exec
+    let subscriber = tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
+                .from_env_lossy(),
+        )
+        .with(console_layer);
+
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 }
