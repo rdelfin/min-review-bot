@@ -18,7 +18,7 @@ lazy_static! {
 pub struct MetricsReporter {
     dd_client: DdClient,
     loop_duration_timer: Histogram<f64>,
-    loop_load_gauge: ObservableGauge<f64>,
+    loop_load_hist: Histogram<f64>,
 }
 
 impl MetricsReporter {
@@ -33,11 +33,11 @@ impl MetricsReporter {
 
         // Create a meter from the above MeterProvider.
         let loop_duration_timer = meter.f64_histogram("loop_duration_ms").init();
-        let loop_load_gauge = meter.f64_observable_gauge("loop_load").init();
+        let loop_load_hist = meter.f64_histogram("loop_load").init();
         Ok(MetricsReporter {
             dd_client,
             loop_duration_timer,
-            loop_load_gauge,
+            loop_load_hist,
         })
     }
 
@@ -61,7 +61,7 @@ impl MetricsReporter {
             .timer("loop_duration", true_duration.as_secs_f64() * 1000., &None);
         mr.dd_client.gauge("loop_load", loop_load, &None);
         mr.loop_duration_timer.record(loop_duration_ms, &[]);
-        mr.loop_load_gauge.observe(loop_load, &[]);
+        mr.loop_load_hist.observe(loop_load, &[]);
     }
 
     fn init_meter() -> Result<Meter> {
