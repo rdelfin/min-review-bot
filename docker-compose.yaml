@@ -8,4 +8,5 @@ services:
       - ./data.db:/var/cache/reviewbot/data.db
       - /var/run/datadog/datadog.sock:/var/run/datadog/datadog.sock
     restart: always
+    network_mode: "host"
     command: ["min_review_daemon", "--config", "/etc/reviewbot/config.toml"]
