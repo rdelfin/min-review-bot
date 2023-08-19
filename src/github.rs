@@ -6,6 +6,7 @@ use octocrab::{
     Octocrab,
 };
 use std::collections::BTreeSet;
+use tracing::instrument;
 use unidiff::{PatchSet, PatchedFile};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -143,6 +144,7 @@ impl GithubSource {
 
 #[async_trait::async_trait]
 impl RepoSource for GithubSource {
+    #[instrument(level = "debug")]
     async fn add_pr_comment(&self, body: String, num: u64, repo: &Repo) -> Result<Comment> {
         Ok(self
             .octo_instance
@@ -151,6 +153,7 @@ impl RepoSource for GithubSource {
             .await?)
     }
 
+    #[instrument(level = "debug")]
     async fn edit_pr_comment(&self, body: String, comment_id: u64, repo: &Repo) -> Result<Comment> {
         Ok(self
             .octo_instance
@@ -159,6 +162,7 @@ impl RepoSource for GithubSource {
             .await?)
     }
 
+    #[instrument(level = "debug")]
     async fn list_pr_comments(&self, num: u64, repo: &Repo) -> Result<Vec<Comment>> {
         let mut comments = vec![];
         let mut page_num = 1u32;
@@ -183,6 +187,7 @@ impl RepoSource for GithubSource {
         Ok(comments)
     }
 
+    #[instrument(level = "debug")]
     async fn get_pr_diff(&self, num: u64, repo: &Repo) -> Result<String> {
         Ok(self
             .octo_instance
@@ -192,6 +197,7 @@ impl RepoSource for GithubSource {
             .await?)
     }
 
+    #[instrument(level = "debug")]
     async fn get_file_data(&self, path: String, repo: &Repo) -> Result<String> {
         let content_items = self
             .octo_instance
@@ -215,6 +221,7 @@ impl RepoSource for GithubSource {
         Ok(String::from_utf8(base64::decode(raw_contents)?)?)
     }
 
+    #[instrument(level = "debug")]
     async fn list_open_prs(&self, repo: &Repo) -> Result<Vec<PullRequest>> {
         let mut prs = vec![];
         let mut page_num = 1u32;

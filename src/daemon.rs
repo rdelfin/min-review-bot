@@ -18,7 +18,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 use tokio::time::Instant;
-use tracing::{error, info, warn};
+use tracing::{error, info, instrument, warn};
 use tracing_subscriber::layer::SubscriberExt;
 
 #[derive(Parser, Debug)]
@@ -30,7 +30,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_tracing();
+    setup_tracing()?;
     let args = Args::parse();
     let config: Config = toml::de::from_slice(&tokio::fs::read(args.config).await?)?;
     info!(config = ?config, "starting node");
@@ -65,26 +65,13 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
+#[instrument(level = "info", skip_all)]
 async fn inner_update_loop(
     db: &Cache,
     repo_connector: &RepoConnector<GithubSource>,
     config: &Config,
 ) -> anyhow::Result<()> {
-    let updates = db.get_all_last_updates().await?;
-    let prs: Vec<_> = repo_connector
-        .get_open_prs()
-        .await?
-        .into_iter()
-        .filter(|pr| {
-            if let Some(user) = &pr.user {
-                config.users.contains(&user.login)
-            } else {
-                false
-            }
-        })
-        .collect();
-    let codeowners_data = repo_connector.get_codeowners_content().await?;
-    let codeowners = codeowners::from_reader(codeowners_data.as_bytes());
+    let (prs, codeowners, updates) = fetch_pr_info(db, repo_connector, config).await?;
 
     for pr in prs {
         if should_update_pr(&pr, &updates, config) {
@@ -104,6 +91,31 @@ async fn inner_update_loop(
     }
 
     Ok(())
+}
+
+#[instrument(level = "info", skip_all)]
+async fn fetch_pr_info(
+    db: &Cache,
+    repo_connector: &RepoConnector<GithubSource>,
+    config: &Config,
+) -> anyhow::Result<(Vec<PullRequest>, Owners, BTreeMap<u64, SystemTime>)> {
+    let updates = db.get_all_last_updates().await?;
+    let prs: Vec<_> = repo_connector
+        .get_open_prs()
+        .await?
+        .into_iter()
+        .filter(|pr| {
+            if let Some(user) = &pr.user {
+                config.users.contains(&user.login)
+            } else {
+                false
+            }
+        })
+        .collect();
+    let codeowners_data = repo_connector.get_codeowners_content().await?;
+    let codeowners = codeowners::from_reader(codeowners_data.as_bytes());
+
+    Ok((prs, codeowners, updates))
 }
 
 fn should_update_pr(
@@ -141,6 +153,11 @@ async fn get_pr_conditional<S: RepoSource>(
     ))
 }
 
+#[instrument(
+    level = "info",
+    skip_all,
+    fields(pr_num = pr.number)
+)]
 async fn update_pr(
     config: &Config,
     pr: &PullRequest,
@@ -150,7 +167,6 @@ async fn update_pr(
     conditional: OwnersConditional,
     changed_files: BTreeSet<String>,
 ) -> anyhow::Result<()> {
-    info!(pr_number = pr.number, "updating PR");
     let file_owners = min_review_bot::display_file_owners(
         &codeowners,
         &changed_files.iter().map(|f| f.as_ref()).collect::<Vec<_>>(),
@@ -186,7 +202,16 @@ The minimum set of reviewers required are:
     Ok(())
 }
 
-fn setup_tracing() {
+fn setup_tracing() -> anyhow::Result<()> {
+    // Install a new OpenTelemetry trace pipeline
+    let tracer = opentelemetry_otlp::new_pipeline()
+        .tracing()
+        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
+        .install_simple()?;
+
+    // Create a tracing layer with the configured tracer
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
     // Configure a custom event formatter
     let format = tracing_subscriber::fmt::format()
         .with_line_number(true)
@@ -205,7 +230,10 @@ fn setup_tracing() {
                 .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
                 .from_env_lossy(),
         )
-        .with(console_layer);
+        .with(console_layer)
+        .with(telemetry);
 
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber)?;
+
+    Ok(())
 }
