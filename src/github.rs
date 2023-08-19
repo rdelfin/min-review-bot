@@ -47,11 +47,13 @@ impl<S: RepoSource> RepoConnector<S> {
         RepoConnector { source, repo }
     }
 
+    #[instrument(level = "info", skip_all, fields(pr_num = num), err)]
     pub async fn get_pr_changed_files(&self, num: u64) -> Result<BTreeSet<String>> {
         let diff = self.source.get_pr_diff(num, &self.repo).await?;
         get_files_from_diff(diff)
     }
 
+    #[instrument(level = "info", skip_all, err)]
     pub async fn get_codeowners_content(&self) -> Result<String> {
         self.source
             .get_file_data("docs/CODEOWNERS".into(), &self.repo)
@@ -153,7 +155,7 @@ impl RepoSource for GithubSource {
             .await?)
     }
 
-    #[instrument(level = "debug")]
+    #[instrument(level = "debug", err)]
     async fn edit_pr_comment(&self, body: String, comment_id: u64, repo: &Repo) -> Result<Comment> {
         Ok(self
             .octo_instance
@@ -162,7 +164,7 @@ impl RepoSource for GithubSource {
             .await?)
     }
 
-    #[instrument(level = "debug")]
+    #[instrument(level = "debug", err)]
     async fn list_pr_comments(&self, num: u64, repo: &Repo) -> Result<Vec<Comment>> {
         let mut comments = vec![];
         let mut page_num = 1u32;
@@ -187,7 +189,7 @@ impl RepoSource for GithubSource {
         Ok(comments)
     }
 
-    #[instrument(level = "debug")]
+    #[instrument(level = "info", err)]
     async fn get_pr_diff(&self, num: u64, repo: &Repo) -> Result<String> {
         Ok(self
             .octo_instance
@@ -197,7 +199,7 @@ impl RepoSource for GithubSource {
             .await?)
     }
 
-    #[instrument(level = "debug")]
+    #[instrument(level = "debug", err)]
     async fn get_file_data(&self, path: String, repo: &Repo) -> Result<String> {
         let content_items = self
             .octo_instance
@@ -221,7 +223,7 @@ impl RepoSource for GithubSource {
         Ok(String::from_utf8(base64::decode(raw_contents)?)?)
     }
 
-    #[instrument(level = "debug")]
+    #[instrument(level = "debug", err)]
     async fn list_open_prs(&self, repo: &Repo) -> Result<Vec<PullRequest>> {
         let mut prs = vec![];
         let mut page_num = 1u32;
@@ -273,6 +275,7 @@ pub enum Error {
 
 pub type Result<T = (), E = Error> = std::result::Result<T, E>;
 
+#[instrument(level = "info", skip_all, err)]
 fn get_files_from_diff(diff: String) -> Result<BTreeSet<String>> {
     let mut files_changed = BTreeSet::new();
 

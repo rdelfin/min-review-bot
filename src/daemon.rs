@@ -67,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-#[instrument(level = "info", skip_all)]
+#[instrument(level = "info", skip_all, err)]
 async fn inner_update_loop(
     db: &Cache,
     repo_connector: &RepoConnector<GithubSource>,
@@ -95,7 +95,7 @@ async fn inner_update_loop(
     Ok(())
 }
 
-#[instrument(level = "info", skip_all)]
+#[instrument(level = "info", skip_all, err)]
 async fn fetch_pr_info(
     db: &Cache,
     repo_connector: &RepoConnector<GithubSource>,
@@ -120,12 +120,14 @@ async fn fetch_pr_info(
     Ok((prs, codeowners, updates))
 }
 
+#[instrument(level = "info", skip_all, fields(pr_num = pr.number), ret)]
 fn should_update_pr(
     pr: &PullRequest,
     updates: &BTreeMap<u64, SystemTime>,
     config: &Config,
 ) -> bool {
     if config.banned_prs.contains(&pr.number) {
+        info!("pr is banned");
         false
     } else {
         updates
@@ -141,6 +143,7 @@ fn should_update_pr(
     }
 }
 
+#[instrument(level = "info", skip_all, fields(pr_num = pr_id), ret)]
 async fn get_pr_conditional<S: RepoSource>(
     pr_id: u64,
     repo_connector: &RepoConnector<S>,
@@ -158,7 +161,8 @@ async fn get_pr_conditional<S: RepoSource>(
 #[instrument(
     level = "info",
     skip_all,
-    fields(pr_num = pr.number)
+    fields(pr_num = pr.number),
+    err
 )]
 async fn update_pr(
     config: &Config,
