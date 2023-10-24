@@ -20,6 +20,7 @@ codeowners = "0.1.3"
 datadog-statsd = { git = "https://github.com/dmweis/rust-dogstatsd", rev = "fcb310c3ed55bc83b840b729013d2ba8203530bf" }
 dotenv = "0.15.0"
 env_logger = "0.10.0"
+futures-util = "0.3.28"
 jsonwebtoken = "8.1.1"
 lazy_static = "1.4.0"
 octocrab = "0.17.0"

@@ -1,5 +1,6 @@
 use clap::Parser;
 use codeowners::Owners;
+use futures_util::future::join_all;
 use jsonwebtoken::EncodingKey;
 use min_review_bot::{
     cache::Cache,
@@ -77,16 +78,21 @@ async fn inner_update_loop(
 ) -> anyhow::Result<()> {
     let (prs, codeowners, updates) = fetch_pr_info(db, repo_connector, config).await?;
 
-    for pr in prs {
-        process_pr(&pr, &updates, &codeowners, config, db, repo_connector).await?;
-    }
+    let process_iter = prs
+        .into_iter()
+        .map(|pr| process_pr(pr, &updates, &codeowners, config, db, repo_connector));
+
+    join_all(process_iter)
+        .await
+        .into_iter()
+        .collect::<anyhow::Result<Vec<_>>>()?;
 
     Ok(())
 }
 
 #[instrument(level = "info", skip_all, fields(pr_num = pr.number), err)]
 async fn process_pr(
-    pr: &PullRequest,
+    pr: PullRequest,
     updates: &BTreeMap<u64, SystemTime>,
     codeowners: &Owners,
     config: &Config,
