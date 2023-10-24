@@ -13,12 +13,8 @@ pub struct Config {
     pub dry_run: bool,
     // A list of PRs that are banned from being checked
     pub banned_prs: BTreeSet<u64>,
-    #[serde(default = "datadog_socket_default")]
-    pub datadog_socket: PathBuf,
-}
-
-fn datadog_socket_default() -> PathBuf {
-    PathBuf::from("/var/run/datadog/dogstatsd.sock")
+    #[serde(default)]
+    pub datadog_socket: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

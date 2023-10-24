@@ -37,11 +37,13 @@ async fn main() -> anyhow::Result<()> {
     let config: Config = toml::de::from_slice(&tokio::fs::read(args.config).await?)?;
     info!(config = ?config, "starting node");
 
-    if let Err(e) = MetricsReporter::initialise(&config.datadog_socket) {
-        warn!(
-            error = ?e,
-            "There was an error initialising connection to datadog; continuing"
-        );
+    if let Some(datadog_socket) = config.datadog_socket.as_ref() {
+        if let Err(e) = MetricsReporter::initialise(datadog_socket) {
+            warn!(
+                error = ?e,
+                "There was an error initialising connection to datadog; continuing"
+            );
+        }
     }
 
     let pem_data = tokio::fs::read(PathBuf::from(&config.github.private_key_path)).await?;
