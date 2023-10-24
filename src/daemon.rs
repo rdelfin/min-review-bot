@@ -33,9 +33,9 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_tracing()?;
     let args = Args::parse();
     let config: Config = toml::de::from_slice(&tokio::fs::read(args.config).await?)?;
+    setup_tracing(&config)?;
     info!(config = ?config, "starting node");
 
     if let Some(datadog_socket) = config.datadog_socket.as_ref() {
@@ -229,7 +229,16 @@ The minimum set of reviewers required are:
     Ok(())
 }
 
-fn setup_tracing() -> anyhow::Result<()> {
+fn setup_tracing(config: &Config) -> anyhow::Result<()> {
+    // Configure a custom event formatter
+    let format = tracing_subscriber::fmt::format()
+        .with_line_number(true)
+        .with_thread_names(true) // include the name of the current thread
+        .with_timer(tracing_subscriber::fmt::time::SystemTime) // use system time
+        .compact(); // use the `Compact` formatting style.
+
+    let console_layer = tracing_subscriber::fmt::layer().event_format(format);
+
     // Install a new OpenTelemetry trace pipeline
     let tracer = opentelemetry_otlp::new_pipeline()
         .tracing()
@@ -245,28 +254,32 @@ fn setup_tracing() -> anyhow::Result<()> {
     // Create a tracing layer with the configured tracer
     let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
-    // Configure a custom event formatter
-    let format = tracing_subscriber::fmt::format()
-        .with_line_number(true)
-        .with_thread_names(true) // include the name of the current thread
-        .with_timer(tracing_subscriber::fmt::time::SystemTime) // use system time
-        .compact(); // use the `Compact` formatting style.
-
-    let console_layer = tracing_subscriber::fmt::layer().event_format(format);
-
-    // Create a tracing subscriber with the default level INFO
-    // To change the level, set the environment variable RUST_LOG before
-    // running the executable: $ RUST_LOG=error ./exec
-    let subscriber = tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::builder()
-                .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
-                .from_env_lossy(),
-        )
-        .with(console_layer)
-        .with(telemetry);
-
-    tracing::subscriber::set_global_default(subscriber)?;
+    if config.send_open_telemetry {
+        // Create a tracing subscriber with the default level INFO
+        // To change the level, set the environment variable RUST_LOG before
+        // running the executable: $ RUST_LOG=error ./exec
+        let subscriber = tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::builder()
+                    .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
+                    .from_env_lossy(),
+            )
+            .with(console_layer)
+            .with(telemetry);
+        tracing::subscriber::set_global_default(subscriber)?;
+    } else {
+        // Create a tracing subscriber with the default level INFO
+        // To change the level, set the environment variable RUST_LOG before
+        // running the executable: $ RUST_LOG=error ./exec
+        let subscriber = tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::builder()
+                    .with_default_directive(tracing::level_filters::LevelFilter::INFO.into())
+                    .from_env_lossy(),
+            )
+            .with(console_layer);
+        tracing::subscriber::set_global_default(subscriber)?;
+    }
 
     Ok(())
 }

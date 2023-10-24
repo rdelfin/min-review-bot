@@ -11,6 +11,8 @@ pub struct Config {
     pub db_path: PathBuf,
     #[serde(default)]
     pub dry_run: bool,
+    #[serde(default)]
+    pub send_open_telemetry: bool,
     // A list of PRs that are banned from being checked
     pub banned_prs: BTreeSet<u64>,
     #[serde(default)]
