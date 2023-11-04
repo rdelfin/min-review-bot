@@ -1,11 +1,11 @@
 version: '3'
 services:
   daemon:
-    image: registry.rdelfin.com/min_review_bot:latest
+    image: rdelfin/min_review_bot:latest
     volumes:
       - ./config.toml:/etc/reviewbot/config.toml:ro
       - ./private_key.pem:/etc/reviewbot/private_key.pem:ro
-      - ./data.db:/var/cache/reviewbot/data.db
+      - ./data:/var/cache/reviewbot:rw
       - /var/run/datadog/datadog.sock:/var/run/datadog/datadog.sock
     restart: always
     network_mode: "host"

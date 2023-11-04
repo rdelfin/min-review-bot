@@ -1,7 +1,7 @@
 use crate::config::Config;
 use sqlx::{
+    migrate::MigrateDatabase,
     sqlite::{SqlitePool, SqlitePoolOptions},
-    Executor,
 };
 use std::{
     collections::BTreeMap,
@@ -14,10 +14,15 @@ pub struct Cache {
 
 impl Cache {
     pub async fn new(config: &Config) -> sqlx::Result<Cache> {
+        let db_url = &format!("sqlite:{}", config.db_path.display());
+        if !sqlx::Sqlite::database_exists(&db_url).await? {
+            sqlx::Sqlite::create_database(&db_url).await?;
+        }
+
         let connector = Cache {
             pool: SqlitePoolOptions::new()
                 .max_connections(10)
-                .connect(&format!("sqlite:{}", config.db_path.display()))
+                .connect(&db_url)
                 .await?,
         };
         connector.initialise_db().await?;
@@ -25,13 +30,8 @@ impl Cache {
     }
 
     async fn initialise_db(&self) -> sqlx::Result<()> {
-        self.pool
-            .execute(
-                "CREATE TABLE IF NOT EXISTS last_checked_change (\
-                    pr_id UNSIGNED INTEGER NOT NULL PRIMARY KEY,\
-                    last_updated_unixus INTEGER NOT NULL\
-                );",
-            )
+        sqlx::query_file!("sql/create.sql")
+            .execute(&self.pool)
             .await?;
 
         Ok(())
