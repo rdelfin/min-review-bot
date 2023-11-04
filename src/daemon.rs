@@ -16,7 +16,7 @@ use octocrab::{
 use opentelemetry::sdk::Resource;
 use opentelemetry_api::KeyValue;
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     path::PathBuf,
     time::{Duration, SystemTime},
 };
@@ -100,8 +100,13 @@ async fn process_pr(
     repo_connector: &RepoConnector<GithubSource>,
 ) -> anyhow::Result<()> {
     if should_update_pr(&pr, &updates, config) {
-        let (conditional, changed_files) =
-            get_pr_conditional(pr.number, repo_connector, &codeowners).await?;
+        let (conditional, changed_files) = get_pr_conditional(
+            pr.number,
+            repo_connector,
+            &codeowners,
+            &config.exclude_owners,
+        )
+        .await?;
         update_pr(
             config,
             &pr,
@@ -169,12 +174,16 @@ async fn get_pr_conditional<S: RepoSource>(
     pr_id: u64,
     repo_connector: &RepoConnector<S>,
     codeowners: &Owners,
+    exclude_owners: &HashSet<String>,
 ) -> anyhow::Result<(OwnersConditional, BTreeSet<String>)> {
     let changed_files = repo_connector.get_pr_changed_files(pr_id).await?;
     info!(changed_files =? changed_files, "changed files");
     let changed_files_slc: Vec<&str> = changed_files.iter().map(|f| f.as_ref()).collect();
     Ok((
-        OwnersConditional::from_codeowners(codeowners, &changed_files_slc[..]).reduce(),
+        OwnersConditional::from_codeowners(codeowners, &changed_files_slc[..])
+            .remove_all(exclude_owners)
+            .unwrap_or(OwnersConditional::And(Vec::new()))
+            .reduce(),
         changed_files,
     ))
 }

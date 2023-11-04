@@ -1,9 +1,9 @@
 use serde::Deserialize;
-use std::{collections::BTreeSet, path::PathBuf, time::Duration};
+use std::{collections::HashSet, path::PathBuf, time::Duration};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
-    pub users: BTreeSet<String>,
+    pub users: HashSet<String>,
     pub repo: String,
     pub bot_username: String,
     pub github: GithubConfig,
@@ -14,9 +14,11 @@ pub struct Config {
     #[serde(default)]
     pub send_open_telemetry: bool,
     // A list of PRs that are banned from being checked
-    pub banned_prs: BTreeSet<u64>,
+    pub banned_prs: HashSet<u64>,
     #[serde(default)]
     pub datadog_socket: Option<PathBuf>,
+    #[serde(default)]
+    pub exclude_owners: HashSet<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

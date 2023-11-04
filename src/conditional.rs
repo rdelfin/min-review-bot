@@ -1,6 +1,6 @@
 use codeowners::{Owner, Owners};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     fmt::{self, Display},
 };
 
@@ -54,6 +54,40 @@ impl OwnersConditional {
         }
 
         min_owners
+    }
+
+    pub fn remove_all(self, excluded_owners: &HashSet<String>) -> Option<OwnersConditional> {
+        match self {
+            OwnersConditional::And(owners) => {
+                let new_values: Vec<_> = owners
+                    .into_iter()
+                    .filter_map(|cond| cond.remove_all(excluded_owners))
+                    .collect();
+                match new_values.len() {
+                    0 => None,
+                    1 => Some(new_values[0].clone()),
+                    _ => Some(OwnersConditional::And(new_values)),
+                }
+            }
+            OwnersConditional::Or(owners) => {
+                let new_values: Vec<_> = owners
+                    .into_iter()
+                    .filter_map(|cond| cond.remove_all(excluded_owners))
+                    .collect();
+                match new_values.len() {
+                    0 => None,
+                    1 => Some(new_values[0].clone()),
+                    _ => Some(OwnersConditional::Or(new_values)),
+                }
+            }
+            OwnersConditional::Owner(owner) => {
+                if excluded_owners.contains(&owner) {
+                    None
+                } else {
+                    Some(OwnersConditional::Owner(owner))
+                }
+            }
+        }
     }
 
     pub fn reduce(self) -> OwnersConditional {
@@ -156,6 +190,7 @@ pub fn to_owners_map<'f, 'c>(
 mod test {
     use super::OwnersConditional;
     use codeowners::Owner;
+    use std::collections::HashSet;
 
     #[test]
     fn test_from_owners() -> anyhow::Result<()> {
@@ -226,6 +261,91 @@ mod test {
                 OwnersConditional::Owner("owner_c".into()),
                 OwnersConditional::Owner("owner_a".into())
             ])
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove() -> anyhow::Result<()> {
+        let exclude_owners: HashSet<String> = ["owner_a".into(), "owner_d".into()].into();
+        assert_eq!(
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_a".into()),
+                OwnersConditional::Owner("owner_b".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+            .remove_all(&exclude_owners)
+            .ok_or_else(|| anyhow::anyhow!("remove_all gave empty owners"))?
+            .reduce(),
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_b".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+        );
+
+        assert_eq!(
+            OwnersConditional::And(vec![
+                OwnersConditional::Or(vec![
+                    OwnersConditional::Owner("owner_a".into()),
+                    OwnersConditional::Owner("owner_d".into()),
+                ]),
+                OwnersConditional::Owner("owner_b".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+            .remove_all(&exclude_owners)
+            .ok_or_else(|| anyhow::anyhow!("remove_all gave empty owners"))?
+            .reduce(),
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_b".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+        );
+
+        assert_eq!(
+            OwnersConditional::Or(vec![
+                OwnersConditional::And(vec![
+                    OwnersConditional::Owner("owner_a".into()),
+                    OwnersConditional::Owner("owner_d".into()),
+                ]),
+                OwnersConditional::Owner("owner_b".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+            .remove_all(&exclude_owners)
+            .ok_or_else(|| anyhow::anyhow!("remove_all gave empty owners"))?
+            .reduce(),
+            OwnersConditional::Or(vec![
+                OwnersConditional::Owner("owner_b".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+        );
+
+        assert_eq!(
+            OwnersConditional::And(vec![
+                OwnersConditional::Or(vec![
+                    OwnersConditional::Owner("owner_a".into()),
+                    OwnersConditional::Owner("owner_e".into()),
+                ]),
+                OwnersConditional::Owner("owner_b".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+            .remove_all(&exclude_owners)
+            .ok_or_else(|| anyhow::anyhow!("remove_all gave empty owners"))?
+            .reduce(),
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_e".into()),
+                OwnersConditional::Owner("owner_b".into()),
+                OwnersConditional::Owner("owner_c".into()),
+            ])
+        );
+
+        assert_eq!(
+            OwnersConditional::And(vec![
+                OwnersConditional::Owner("owner_a".into()),
+                OwnersConditional::Owner("owner_d".into()),
+            ])
+            .remove_all(&exclude_owners),
+            None,
         );
 
         Ok(())

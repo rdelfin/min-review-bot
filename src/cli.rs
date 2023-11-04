@@ -14,7 +14,9 @@ struct Args {
     pr_num: u64,
     #[arg(long, short)]
     repo: String,
-    #[arg(long, short, default_value_t = true)]
+    #[arg(long, short)]
+    exclude_owners: Vec<String>,
+    #[arg(long, short)]
     update_github: bool,
 }
 
@@ -22,6 +24,7 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv()?;
     let args = Args::parse();
+    let exclude_owners = args.exclude_owners.into_iter().collect();
 
     let pem_path = env::var("GITHUB_PRIVATE_KEY_PATH")?;
     let pem_data = tokio::fs::read(PathBuf::from(pem_path)).await?;
@@ -38,27 +41,36 @@ async fn main() -> anyhow::Result<()> {
     let codeowners = codeowners::from_reader(codeowners_data.as_bytes());
 
     let changed_files_slc: Vec<&str> = changed_files.iter().map(|f| f.as_ref()).collect();
-    let conditional =
-        OwnersConditional::from_codeowners(&codeowners, &changed_files_slc[..]).reduce();
+    let conditional = OwnersConditional::from_codeowners(&codeowners, &changed_files_slc[..])
+        .remove_all(&exclude_owners)
+        .unwrap_or(OwnersConditional::And(Vec::new()))
+        .reduce();
 
-    if args.update_github {
-        let file_owners = min_review_bot::display_file_owners(&codeowners, &changed_files_slc[..]);
-        println!("Required reviewers: {conditional}");
+    let file_owners = min_review_bot::display_file_owners(&codeowners, &changed_files_slc[..]);
+    println!("Required reviewers: {conditional}");
 
-        let comment = format!(
-            r#"# File Owners
+    let comment = format!(
+        r#"# File Owners
 The minimum set of reviewers required are:
 `{conditional}`
 <details>
     <summary>Details</summary>
     {file_owners}
 </details>"#
-        );
-        println!("Updating comment on PR {}:", args.pr_num);
+    );
+
+    if args.update_github {
+        println!("Updating comment on PR {}/{}:", args.repo, args.pr_num);
         println!("{comment}");
         repo_connector
             .add_or_edit_comment(args.pr_num, comment, env::var("BOT_USERNAME")?)
             .await?;
+    } else {
+        println!(
+            "Would have updated coment on PR {}/{} to:",
+            args.repo, args.pr_num
+        );
+        println!("{comment}");
     }
 
     Ok(())
