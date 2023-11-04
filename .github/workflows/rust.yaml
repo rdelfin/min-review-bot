@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Generate SQLite DB
+      run: sqlite3 test.db < sql/create.sql
     - name: Build
       run: cargo build --verbose
     - name: Run tests
