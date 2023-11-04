@@ -7,7 +7,7 @@ pub mod github;
 pub mod metrics;
 
 pub fn display_file_owners(codeowners: &Owners, files: &[&str]) -> String {
-    let mut display_str = format!("<ul>");
+    let mut display_str = "<ul>".to_string();
     let owners_map = conditional::to_owners_map(codeowners, files);
     for (file, owners) in owners_map.into_iter() {
         display_str.push_str(&format!("<li><code>{}</code>", file));

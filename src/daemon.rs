@@ -99,11 +99,11 @@ async fn process_pr(
     db: &Cache,
     repo_connector: &RepoConnector<GithubSource>,
 ) -> anyhow::Result<()> {
-    if should_update_pr(&pr, &updates, config) {
+    if should_update_pr(&pr, updates, config) {
         let (conditional, changed_files) = get_pr_conditional(
             pr.number,
             repo_connector,
-            &codeowners,
+            codeowners,
             &config.exclude_owners,
         )
         .await?;
@@ -112,7 +112,7 @@ async fn process_pr(
             &pr,
             repo_connector,
             db,
-            &codeowners,
+            codeowners,
             conditional,
             changed_files,
         )
@@ -204,7 +204,7 @@ async fn update_pr(
     changed_files: BTreeSet<String>,
 ) -> anyhow::Result<()> {
     let file_owners = min_review_bot::display_file_owners(
-        &codeowners,
+        codeowners,
         &changed_files.iter().map(|f| f.as_ref()).collect::<Vec<_>>(),
     );
     let comment = format!(

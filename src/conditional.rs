@@ -27,7 +27,7 @@ impl OwnersConditional {
                     continue;
                 }
             };
-            if owners.len() == 0 {
+            if owners.is_empty() {
                 continue;
             }
 
@@ -98,7 +98,7 @@ impl OwnersConditional {
         match self {
             OwnersConditional::And(items) => {
                 // Remove all duplicate items
-                let mut new_items = items.clone();
+                let mut new_items = items;
                 for i in (0..new_items.len()).rev() {
                     for j in 0..i {
                         if new_items[j] == new_items[i] {
@@ -118,7 +118,7 @@ impl OwnersConditional {
         match self {
             OwnersConditional::And(items) => {
                 // Remove all duplicate items
-                let mut new_items = items.clone();
+                let mut new_items = items;
                 for i in (0..new_items.len()).rev() {
                     for j in 0..i {
                         let remove = match (

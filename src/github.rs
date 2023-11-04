@@ -21,7 +21,7 @@ impl Repo {
     }
 
     pub fn from_path(path: &str) -> Result<Repo, Error> {
-        let segments: Vec<_> = path.split("/").collect();
+        let segments: Vec<_> = path.split('/').collect();
         if segments.len() != 2 {
             return Err(Error::InvalidPath(path.into()));
         }
@@ -29,10 +29,10 @@ impl Repo {
         Ok(Repo::new(segments[0].into(), segments[1].into()))
     }
 
-    pub fn user<'a>(&'a self) -> &'a str {
+    pub fn user(&self) -> &str {
         &self.user
     }
-    pub fn repo<'a>(&'a self) -> &'a str {
+    pub fn repo(&self) -> &str {
         &self.repo
     }
 }
@@ -75,8 +75,7 @@ impl<S: RepoSource> RepoConnector<S> {
             .list_pr_comments(pr_num, &self.repo)
             .await?
             .into_iter()
-            .filter(|comment| comment.user.login == bot_username)
-            .nth(0);
+            .find(|comment| comment.user.login == bot_username);
 
         match comment {
             Some(comment) => {
@@ -179,7 +178,7 @@ impl RepoSource for GithubSource {
                 .send()
                 .await?
                 .take_items();
-            if new_comments.len() == 0 {
+            if new_comments.is_empty() {
                 break;
             }
             page_num += 1;
@@ -218,7 +217,7 @@ impl RepoSource for GithubSource {
             .content
             .clone()
             .ok_or(Error::EmptyContents)?
-            .replace("\n", "");
+            .replace('\n', "");
 
         Ok(String::from_utf8(base64::decode(raw_contents)?)?)
     }
@@ -240,7 +239,7 @@ impl RepoSource for GithubSource {
                 .send()
                 .await?
                 .take_items();
-            if new_prs.len() == 0 {
+            if new_prs.is_empty() {
                 break;
             }
             page_num += 1;
@@ -312,7 +311,9 @@ fn get_files_from_diff(diff: String) -> Result<BTreeSet<String>> {
     Ok(files_changed)
 }
 
-fn remove_prefix(is_target: bool) -> Box<dyn Fn(&PatchedFile) -> Result<String>> {
+type PatchedFileRemoveFn = dyn Fn(&PatchedFile) -> Result<String>;
+
+fn remove_prefix(is_target: bool) -> Box<PatchedFileRemoveFn> {
     Box::new(move |f: &PatchedFile| {
         let file = if is_target {
             &f.target_file
