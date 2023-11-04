@@ -7,4 +7,5 @@ create_db.bash
 docker-compose.yaml
 .gitignore
 data.db
+test.db
 data/

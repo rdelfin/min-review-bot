@@ -1,0 +1,36 @@
+# {version}
+
+We recommend setting this up with docker compose. Here's a sample docker compose for this version:
+
+```yaml
+version: '3'
+services:
+  daemon:
+    image: rdelfin/min_review_bot:{version}
+    volumes:
+      - ./config.toml:/etc/reviewbot/config.toml:ro
+      - ./private_key.pem:/etc/reviewbot/private_key.pem:ro
+      - ./data:/var/cache/reviewbot:rw
+    restart: always
+    network_mode: "host"
+    command: ["min_review_daemon", "--config", "/etc/reviewbot/config.toml"]
+```
+
+And this should be accompanied by a matching config:
+
+```toml
+repo = "YOUR_REPO"
+bot_username = "YOUR BOT'S USERNAME"
+sleep_period = { secs = 60, nanos = 0 }
+# This should be a list of users that have this bot enabled. We will change this
+# to a blocklist in a future release
+users = [
+    "user1",
+    "user2",
+]
+db_path = "/var/cache/reviewbot/data.db"
+
+[github]
+private_key_path = "PATH_TO_GITHUB_APP_PEM_FILE"
+app_id = YOUR_GITHUB_APP_ID
+```
