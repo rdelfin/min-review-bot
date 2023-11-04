@@ -1,6 +1,7 @@
 NAME=min_review_bot
-VERSION=latest
-TAG=registry.rdelfin.com/${NAME}:${VERSION}
+VERSION=$(shell tq -f Cargo.toml .package.version | tr -d '"')
+USER=rdelfin
+TAG=${USER}/${NAME}:${VERSION}
 
 .PHONY: build
 build:
