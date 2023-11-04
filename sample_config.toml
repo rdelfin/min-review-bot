@@ -1,0 +1,15 @@
+repo = "YOUR_REPO"
+bot_username = "YOUR BOT'S USERNAME"
+sleep_period = { secs = 60, nanos = 0 }
+# This should be a list of users that have this bot enabled. We will change this
+# to a blocklist in a future release
+users = [
+    "user1",
+    "user2",
+]
+db_path = "/var/cache/reviewbot/data.db"
+
+[github]
+private_key_path = "PATH_TO_GITHUB_APP_PEM_FILE"
+app_id = YOUR_GITHUB_APP_ID
+
