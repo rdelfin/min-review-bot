@@ -15,14 +15,14 @@ pub struct Cache {
 impl Cache {
     pub async fn new(config: &Config) -> sqlx::Result<Cache> {
         let db_url = &format!("sqlite:{}", config.db_path.display());
-        if !sqlx::Sqlite::database_exists(&db_url).await? {
-            sqlx::Sqlite::create_database(&db_url).await?;
+        if !sqlx::Sqlite::database_exists(db_url).await? {
+            sqlx::Sqlite::create_database(db_url).await?;
         }
 
         let connector = Cache {
             pool: SqlitePoolOptions::new()
                 .max_connections(10)
-                .connect(&db_url)
+                .connect(db_url)
                 .await?,
         };
         connector.initialise_db().await?;
