@@ -98,7 +98,7 @@ jobs:
 
       - name: Push new version
         run: |
-          git push --force
+          git push
 
   docker_build:
     name: Build docker container
