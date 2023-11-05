@@ -126,7 +126,7 @@ jobs:
         with:
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: rdelfin/min_review_bot:${{ needs.bump_version.outputs.tag }} , rdelfin/min_review_bot:latest
+          tags: rdelfin/min_review_bot:${{ needs.bump_version.outputs.version }} , rdelfin/min_review_bot:latest
 
   github_release:
     name: Generate Github release
