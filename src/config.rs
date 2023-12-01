@@ -23,6 +23,6 @@ pub struct Config {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GithubConfig {
-    pub private_key_path: PathBuf,
+    pub private_key_path: Option<PathBuf>,
     pub app_id: u64,
 }

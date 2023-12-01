@@ -66,3 +66,9 @@ your place. We recommend following
 [this guide](https://docs.github.com/en/apps/creating-github-apps/about-creating-github-apps/about-creating-github-apps)
 to create the app. You will need a github APP ID as well as a `.pem` file to
 authenticate. Place these in the appropriate fields in the config.
+
+### Storing private key
+
+The private key can be stored in a file or as an environment variable. If the
+`private_key_path` field on the `config.toml` isn't set, we'll read the private
+key contents from the `GITHUB_PRIVATE_KEY` environment variable directly.

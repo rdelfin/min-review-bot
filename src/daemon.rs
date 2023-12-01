@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    let pem_data = tokio::fs::read(PathBuf::from(&config.github.private_key_path)).await?;
+    let pem_data = fetch_pem_data(&config).await?;
     let repo = Repo::from_path(&config.repo)?;
 
     let db = Cache::new(&config).await?;
@@ -291,4 +291,11 @@ fn setup_tracing(config: &Config) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+async fn fetch_pem_data(config: &Config) -> anyhow::Result<Vec<u8>> {
+    Ok(match &config.github.private_key_path {
+        Some(private_key_path) => tokio::fs::read(PathBuf::from(&private_key_path)).await?,
+        None => std::env::var("GITHUB_PRIVATE_KEY")?.into_bytes(),
+    })
 }
