@@ -50,7 +50,9 @@ impl<S: RepoSource> RepoConnector<S> {
     #[instrument(level = "info", skip_all, fields(pr_num = num), err)]
     pub async fn get_pr_changed_files(&self, num: u64) -> Result<BTreeSet<String>> {
         let diff = self.source.get_pr_diff(num, &self.repo).await?;
-        get_files_from_diff(diff)
+        tokio::task::spawn_blocking(move || get_files_from_diff(diff))
+            .await
+            .expect("get_files_from_diff panicked")
     }
 
     #[instrument(level = "info", skip_all, err)]
