@@ -11,6 +11,9 @@ path = "src/cli.rs"
 name = "daemon"
 path = "src/daemon.rs"
 
+[lints.rust]
+warnings = "deny"
+
 [dependencies]
 anyhow = "1"
 async-trait = "0.1.58"

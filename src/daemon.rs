@@ -38,13 +38,13 @@ async fn main() -> anyhow::Result<()> {
     setup_tracing(&config)?;
     info!(config = ?config, "starting node");
 
-    if let Some(datadog_socket) = config.datadog_socket.as_ref() {
-        if let Err(e) = MetricsReporter::initialise(datadog_socket) {
-            warn!(
-                error = ?e,
-                "There was an error initialising connection to datadog; continuing"
-            );
-        }
+    if let Some(datadog_socket) = config.datadog_socket.as_ref()
+        && let Err(e) = MetricsReporter::initialise(datadog_socket)
+    {
+        warn!(
+            error = ?e,
+            "There was an error initialising connection to datadog; continuing"
+        );
     }
 
     let pem_data = fetch_pem_data(&config).await?;
