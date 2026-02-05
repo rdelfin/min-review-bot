@@ -10,8 +10,8 @@ use min_review_bot::{
     metrics::MetricsReporter,
 };
 use octocrab::{
-    models::{pulls::PullRequest, AppId},
     Octocrab,
+    models::{AppId, pulls::PullRequest},
 };
 use opentelemetry::sdk::Resource;
 use opentelemetry_api::KeyValue;
@@ -52,10 +52,14 @@ async fn main() -> anyhow::Result<()> {
 
     let db = Cache::new(&config).await?;
 
-    octocrab::initialise(Octocrab::builder().app(
-        AppId(config.github.app_id),
-        EncodingKey::from_rsa_pem(&pem_data)?,
-    ))?;
+    octocrab::initialise(
+        Octocrab::builder()
+            .app(
+                AppId(config.github.app_id),
+                EncodingKey::from_rsa_pem(&pem_data)?,
+            )
+            .build()?,
+    );
     let repo_connector = RepoConnector::new(GithubSource::new_authorized(repo.user()).await?, repo);
 
     let mut next_awake = Instant::now() + config.sleep_period;
