@@ -1,7 +1,7 @@
 [package]
 name = "min-review-bot"
 version = "0.2.1"
-edition = "2021"
+edition = "2024"
 
 [[bin]]
 name = "cli"
@@ -11,29 +11,30 @@ path = "src/cli.rs"
 name = "daemon"
 path = "src/daemon.rs"
 
+[lints.rust]
+warnings = "deny"
+
 [dependencies]
 anyhow = "1"
 async-trait = "0.1.58"
-base64 = "0.13.1"
+base64 = "0.22.1"
 clap = { version = "4.0.25", features = ["derive"] }
 codeowners = "0.1.3"
 datadog-statsd = { git = "https://github.com/dmweis/rust-dogstatsd", rev = "fcb310c3ed55bc83b840b729013d2ba8203530bf" }
 dotenv = "0.15.0"
-env_logger = "0.10.0"
 futures-util = "0.3.28"
-jsonwebtoken = "8.1.1"
+jsonwebtoken = "10.3.0"
 lazy_static = "1.4.0"
-octocrab = "0.17.0"
+octocrab = "0.49.5"
 opentelemetry = { version = "0.20.0", features = ["trace", "metrics", "logs", "rt-tokio"] }
 opentelemetry-otlp = { version = "0.13.0", features = ["trace", "metrics", "logs"] }
-opentelemetry-stdout = { version = "0.1.0", features = ["trace", "metrics", "logs"] }
 opentelemetry_api = { version = "0.20.0", features = ["trace", "metrics", "logs"] }
 serde = "1.0"
-sqlx = { version = "0.6", features = [ "runtime-tokio-rustls", "sqlite" ] }
-thiserror = "1"
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "sqlite"] }
+thiserror = "2.0"
 tokio = { version = "1.21.2", features = ["full"] }
 toml = "0.5.9"
-tracing = "0.1.37"
+tracing = "0.1.44"
 tracing-opentelemetry = { version = "0.20.0", features = ["metrics"] }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter", "json", "registry"] }
-unidiff = "0.3.3"
+unidiff = "0.4.0"

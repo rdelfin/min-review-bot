@@ -1,9 +1,10 @@
-/// This file provides a basic interface into Github that can be easily replaced and mocked out for
-/// use when testing other parts of the codebase.
+//! This file provides a basic interface into GitHub that can be easily replaced
+//! and mocked out for use when testing other parts of the codebase.
+use base64::{Engine as _, engine::general_purpose::STANDARD as base64_engine};
 use octocrab::{
-    models::{issues::Comment, pulls::PullRequest, CommentId},
-    params::State as PrState,
     Octocrab,
+    models::{CommentId, issues::Comment, pulls::PullRequest},
+    params::State as PrState,
 };
 use std::collections::BTreeSet;
 use tracing::instrument;
@@ -139,7 +140,7 @@ impl GithubSource {
 
         let installation_id =
             installation_id.ok_or_else(|| Error::NoInstallationId(user.into()))?;
-        let octo_instance = octocrab::instance().installation(installation_id);
+        let octo_instance = octocrab::instance().installation(installation_id)?;
 
         Ok(GithubSource { octo_instance })
     }
@@ -221,7 +222,7 @@ impl RepoSource for GithubSource {
             .ok_or(Error::EmptyContents)?
             .replace('\n', "");
 
-        Ok(String::from_utf8(base64::decode(raw_contents)?)?)
+        Ok(String::from_utf8(base64_engine.decode(raw_contents)?)?)
     }
 
     #[instrument(level = "debug", err)]

@@ -1,6 +1,6 @@
 ARG ARCH=
-FROM ${ARCH}lukemathwalker/cargo-chef:latest-rust-1-buster AS chef
-WORKDIR app
+FROM ${ARCH}lukemathwalker/cargo-chef:latest-rust-1-bookworm AS chef
+WORKDIR /app
 
 FROM chef AS planner
 
@@ -24,11 +24,11 @@ COPY min.env .env
 RUN sqlite3 test.db < sql/create.sql
 RUN cargo build --release --bin daemon
 
-FROM ${ARCH}debian:buster-slim
+FROM ${ARCH}debian:bookworm-slim
 COPY --from=builder /app/target/release/daemon /usr/local/bin/min_review_daemon
 
 RUN apt-get update \
-    && apt-get install -y libssl1.1 sqlite3 ca-certificates \
+    && apt-get install -y libssl3 sqlite3 ca-certificates \
     && apt-get autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists

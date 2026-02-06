@@ -4,7 +4,7 @@ use min_review_bot::{
     conditional::OwnersConditional,
     github::{GithubSource, Repo, RepoConnector},
 };
-use octocrab::{models::AppId, Octocrab};
+use octocrab::{Octocrab, models::AppId};
 use std::{env, path::PathBuf};
 
 #[derive(Parser, Debug)] // requires `derive` feature
@@ -30,10 +30,14 @@ async fn main() -> anyhow::Result<()> {
     let pem_data = tokio::fs::read(PathBuf::from(pem_path)).await?;
     let repo = Repo::from_path(&args.repo)?;
 
-    octocrab::initialise(Octocrab::builder().app(
-        AppId(env::var("GITHUB_APP_ID")?.parse()?),
-        EncodingKey::from_rsa_pem(&pem_data)?,
-    ))?;
+    octocrab::initialise(
+        Octocrab::builder()
+            .app(
+                AppId(env::var("GITHUB_APP_ID")?.parse()?),
+                EncodingKey::from_rsa_pem(&pem_data)?,
+            )
+            .build()?,
+    );
 
     let repo_connector = RepoConnector::new(GithubSource::new_authorized(repo.user()).await?, repo);
     let changed_files = repo_connector.get_pr_changed_files(args.pr_num).await?;
